@@ -1,0 +1,22 @@
+{
+  "name": "annotate-drawing",
+  "version": "0.0.1",
+  "authors": [
+    "PAIO co.,ltd.<apple@paio.co.kr>"
+  ],
+  "description": "annotate drawing",
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "devDependencies": {
+    "webcomponentsjs": "~0.6.1"
+  },
+  "dependencies": {
+    "webcomponentsjs": "~0.6.1"
+  }
+}
