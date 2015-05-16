@@ -15,7 +15,7 @@ var indexFile = './example.html';
 var entryHtmlArray = ['name-paper.html']; //vulcanize
 var entryJsArray = ['name-paper.js']; //es6 compiler
 
-var es6Transpiler = process.env.ES6TRANSPILER || 'babelify'; //'babelify' || 'es6ify'
+var es6Transpiler = process.env.ES6_TRANSPILER || 'babelify'; //'babelify' || 'es6ify'
 if (argv.es6ify) {
     es6Transpiler = 'es6ify';
 }
