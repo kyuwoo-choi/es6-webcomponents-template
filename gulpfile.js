@@ -7,10 +7,12 @@ var runSequence = require('run-sequence');
 var argv = require('yargs').argv;
 var browserSync = require('browser-sync').create();
 var reload = browserSync.reload;
+require('web-component-tester').gulp.init(gulp);
 
 var srcDir = './src';
 var tempDir = './.tmp';
 var distDir = './dist';
+var testDir = './test';
 var indexFile = './example.html';
 var entryHtmlArray = ['name-paper.html']; //vulcanize
 var entryJsArray = ['name-paper.js']; //es6 compiler
@@ -114,7 +116,7 @@ gulp.task('build-html', function (callback) {
  * BUILD-ALL
  */
 gulp.task('build-all', function (callback) {
-    return runSequence('clean', [ 'build-js', 'temp-copy-html' ], 'vulcanize-html', callback);
+    return runSequence('clean', [ 'build-js', 'temp-copy-html' ], 'vulcanize-html', 'test:local', callback);
 });
 
 
@@ -138,6 +140,8 @@ gulp.task('serve', ['build-all'], function () {
     }
 
     gulp.watch(watchArray).on('change', reload);
+    gulp.watch(watchArray, ['test:local']);
+    gulp.watch(testDir + '/**/*', ['test:local']);
 });
 
 

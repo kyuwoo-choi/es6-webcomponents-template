@@ -1,0 +1,21 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <script src="../bower_components/webcomponentsjs/webcomponents.js"></script>
+    <script src="../node_modules/web-component-tester/browser.js"></script>
+    <link rel="import" href="../dist/name-paper.html">
+</head>
+<body>
+<name-paper></name-paper>
+<script>
+    suite('<name-paper>', function() {
+        test('is awesomest', function() {
+            var namePapers = document.getElementsByTagName('name-paper');
+            assert.isTrue(namePapers.length > 0);
+            assert.isTrue(typeof namePapers[0].yes === 'function');
+        });
+    });
+</script>
+</body>
+</html>

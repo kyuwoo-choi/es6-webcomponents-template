@@ -20,7 +20,7 @@ nameCard.attachedCallback = function () {
     console.log('attached');
 };
 nameCard.yes = function () {
-    alert('yes 2');
+    alert('yes 3');
 };
 document.registerElement('name-card', {
     prototype: nameCard
