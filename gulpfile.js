@@ -8,14 +8,12 @@ var argv = require('yargs').argv;
 var browserSync = require('browser-sync').create();
 var reload      = browserSync.reload;
 
-
-var indexHtml = './index.html';
-var exampleHtml = './example.html';
 var srcDir = './src';
 var tempDir = './.tmp';
 var distDir = './dist';
-var entryHtmlArray = ['name-paper.html'];
-var entryJsArray = ['name-paper.js'];
+var indexFile = './example.html';
+var entryHtmlArray = ['name-paper.html']; //vulcanize
+var entryJsArray = ['name-paper.js']; //es6 compiler
 
 var es6Transpiler = process.env.ES6TRANSPILER || 'babelify'; //'babelify' || 'es6ify'
 if (argv.es6ify) {
@@ -125,7 +123,7 @@ gulp.task('serve', ['build-all'], function() {
     browserSync.init({
         server: {
             baseDir: './',
-            index: exampleHtml
+            index: indexFile
         }
     });
 
