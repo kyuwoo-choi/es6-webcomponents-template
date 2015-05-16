@@ -13,6 +13,7 @@
     "no-eq-null": 2,
     "quotes": "single",
     "no-new-func": 2,
+    "no-alert": 0,
     "camelcase": [2, "always"],
     "brace-style": [2, "stroustrup", { "allowSingleLine": true }],
     "strict": [2, "global"],

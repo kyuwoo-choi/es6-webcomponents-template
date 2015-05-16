@@ -56,6 +56,8 @@ gulp.task('temp-copy-html', function () {
 gulp.task('build-js', function () {
     return gulp.src(srcDir + '/**/*.js')
         .pipe($.plumber())
+        .pipe($.eslint())
+        .pipe($.eslint.format())
         .pipe($.if(es6Transpiler === 'babelify', $.browserify({
             debug: (compileEnv === 'development'),
             transform: ['babelify']
