@@ -4,8 +4,10 @@ var gulp = require('gulp');
 var $ = require('gulp-load-plugins')();
 var es6ify = require('es6ify');
 var runSequence = require('run-sequence');
+var argv = require('yargs').argv;
 var browserSync = require('browser-sync').create();
 var reload      = browserSync.reload;
+
 
 var indexHtml = './index.html';
 var exampleHtml = './example.html';
@@ -14,8 +16,20 @@ var tempDir = './.tmp';
 var distDir = './dist';
 var entryHtmlArray = ['name-paper.html'];
 var entryJsArray = ['name-paper.js'];
-var isDebug = true;
-var es6Transpiler = 'babelify'; //'babelify' || 'es6ify'
+
+var es6Transpiler = process.env.ES6TRANSPILER || 'babelify'; //'babelify' || 'es6ify'
+if (argv.es6ify) {
+    es6Transpiler = 'es6ify';
+}
+
+var compileEnv = process.env.NODE_ENV || 'development'; //'development' || 'production'
+if (argv.production) {
+    compileEnv = 'production';
+}
+
+
+console.log('compile env : ' + compileEnv);
+console.log('es6 transpiler : ' + es6Transpiler);
 
 
 /**
@@ -27,6 +41,7 @@ gulp.task('clean', function () {
         .pipe($.clean());
 });
 
+
 /**
  * TEMP-COPY-HTML
  */
@@ -36,6 +51,7 @@ gulp.task('temp-copy-html', function () {
         .pipe(gulp.dest(tempDir));
 });
 
+
 /**
  * BUILD-JS
  */
@@ -43,22 +59,23 @@ gulp.task('build-js', function () {
     return gulp.src(srcDir + '/**/*.js')
         .pipe($.plumber())
         .pipe($.if(es6Transpiler === 'babelify', $.browserify({
-            debug: isDebug,
+            debug: (compileEnv === 'development'),
             transform: ['babelify']
         })))
         .pipe($.if(es6Transpiler === 'es6ify', $.browserify({
-            debug: isDebug,
+            debug: (compileEnv === 'development'),
             add: [es6ify.runtime],
             transform: ['es6ify']
         })))
-        .pipe($.sourcemaps.init({loadMaps: isDebug}))
+        .pipe($.sourcemaps.init({loadMaps: true}))
         .pipe($.uglify())
         .pipe($.sourcemaps.write('.', {
             sourceRoot: '.'
         }))
         .pipe(gulp.dest(tempDir))
-        .pipe($.if(isDebug, gulp.dest(distDir)));
+        .pipe($.if((compileEnv === 'development'), gulp.dest(distDir)));
 });
+
 
 /**
  * VULCANIZE-HTML
@@ -72,17 +89,18 @@ gulp.task('vulcanize-html', function () {
     return gulp.src(tempEntryHtml)
         .pipe($.plumber())
         .pipe($.vulcanize({
-            inlineScripts: !isDebug,
-            inlineCss: !isDebug
+            inlineScripts: (compileEnv === 'production'),
+            inlineCss: (compileEnv === 'production')
         }))
-        .pipe($.if(!isDebug, $.htmlMinifier({
-            collapseWhitespace: !isDebug,
-            minifyJS: !isDebug,
-            minifyCSS: !isDebug,
-            removeComments: !isDebug
+        .pipe($.if((compileEnv === 'production'), $.htmlMinifier({
+            collapseWhitespace: (compileEnv === 'production'),
+            minifyJS: (compileEnv === 'production'),
+            minifyCSS: (compileEnv === 'production'),
+            removeComments: (compileEnv === 'production')
         })))
         .pipe(gulp.dest('./dist'));
 });
+
 
 /**
  * BUILD-HTML
@@ -91,21 +109,14 @@ gulp.task('build-html', function (callback) {
     return runSequence('temp-copy-html', 'vulcanize-html', callback);
 });
 
+
 /**
  * BUILD-ALL
  */
 gulp.task('build-all', function (callback) {
-    isDebug = true;
     return runSequence('clean', ['build-js', 'temp-copy-html'], 'vulcanize-html', callback);
 });
 
-/**
- * BUILD-ALL-PRODUCTION
- */
-gulp.task('build-all-production', function (callback) {
-    isDebug = false;
-    return runSequence('clean', ['build-js', 'temp-copy-html'], 'vulcanize-html', callback);
-});
 
 /*
  * SERVE
@@ -128,6 +139,7 @@ gulp.task('serve', ['build-all'], function() {
 
     gulp.watch(watchArray).on('change', reload);
 });
+
 
 /**
  * DEFAULT
