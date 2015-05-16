@@ -6,7 +6,7 @@ var es6ify = require('es6ify');
 var runSequence = require('run-sequence');
 var argv = require('yargs').argv;
 var browserSync = require('browser-sync').create();
-var reload      = browserSync.reload;
+var reload = browserSync.reload;
 
 var srcDir = './src';
 var tempDir = './.tmp';
@@ -34,7 +34,7 @@ console.log('es6 transpiler : ' + es6Transpiler);
  * CLEAN
  */
 gulp.task('clean', function () {
-    return gulp.src([tempDir, distDir])
+    return gulp.src([ tempDir, distDir ])
         .pipe($.plumber())
         .pipe($.clean());
 });
@@ -59,15 +59,15 @@ gulp.task('build-js', function () {
         .pipe($.eslint())
         .pipe($.eslint.format())
         .pipe($.if(es6Transpiler === 'babelify', $.browserify({
-            debug: (compileEnv === 'development'),
+            debug:     (compileEnv === 'development'),
             transform: ['babelify']
         })))
         .pipe($.if(es6Transpiler === 'es6ify', $.browserify({
-            debug: (compileEnv === 'development'),
-            add: [es6ify.runtime],
+            debug:     (compileEnv === 'development'),
+            add:       [es6ify.runtime],
             transform: ['es6ify']
         })))
-        .pipe($.sourcemaps.init({loadMaps: true}))
+        .pipe($.sourcemaps.init({ loadMaps: true }))
         .pipe($.uglify())
         .pipe($.sourcemaps.write('.', {
             sourceRoot: '.'
@@ -90,13 +90,13 @@ gulp.task('vulcanize-html', function () {
         .pipe($.plumber())
         .pipe($.vulcanize({
             inlineScripts: (compileEnv === 'production'),
-            inlineCss: (compileEnv === 'production')
+            inlineCss:     (compileEnv === 'production')
         }))
         .pipe($.if((compileEnv === 'production'), $.htmlMinifier({
             collapseWhitespace: (compileEnv === 'production'),
-            minifyJS: (compileEnv === 'production'),
-            minifyCSS: (compileEnv === 'production'),
-            removeComments: (compileEnv === 'production')
+            minifyJS:           (compileEnv === 'production'),
+            minifyCSS:          (compileEnv === 'production'),
+            removeComments:     (compileEnv === 'production')
         })))
         .pipe(gulp.dest('./dist'));
 });
@@ -114,18 +114,18 @@ gulp.task('build-html', function (callback) {
  * BUILD-ALL
  */
 gulp.task('build-all', function (callback) {
-    return runSequence('clean', ['build-js', 'temp-copy-html'], 'vulcanize-html', callback);
+    return runSequence('clean', [ 'build-js', 'temp-copy-html' ], 'vulcanize-html', callback);
 });
 
 
 /*
  * SERVE
  */
-gulp.task('serve', ['build-all'], function() {
+gulp.task('serve', ['build-all'], function () {
     browserSync.init({
         server: {
             baseDir: './',
-            index: indexFile
+            index:   indexFile
         }
     });
 
