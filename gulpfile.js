@@ -14,8 +14,9 @@ var tempDir = './.tmp';
 var distDir = './dist';
 var testDir = './test';
 var indexFile = './example.html';
-var entryHtmlArray = ['name-paper.html']; //vulcanize
-var entryJsArray = ['name-paper.js']; //es6 compiler
+var entryHtmlArray = ['example-component.html'];
+var entryJsArray = ['example-component.js'];
+var entryCssArray = ['example-component.css'];
 
 var es6Transpiler = process.env.ES6_TRANSPILER || 'babelify'; //'babelify' || 'es6ify'
 if (argv.es6ify) {
@@ -80,6 +81,21 @@ gulp.task('build-js', function () {
 
 
 /**
+ * BUILD-CSS
+ */
+gulp.task('build-css', function () {
+    return gulp.src(srcDir + '/**/*.css')
+        .pipe($.plumber())
+        .pipe($.sourcemaps.init({ loadMaps: true }))
+        .pipe($.minifyCss())
+        .pipe($.sourcemaps.write('.', {
+            sourceRoot: '.'
+        }))
+        .pipe(gulp.dest(tempDir));
+});
+
+
+/**
  * VULCANIZE-HTML
  */
 gulp.task('vulcanize-html', function () {
@@ -92,7 +108,7 @@ gulp.task('vulcanize-html', function () {
         .pipe($.plumber())
         .pipe($.vulcanize({
             inlineScripts: (compileEnv === 'production'),
-            inlineCss:     (compileEnv === 'production')
+            inlineCss:     true
         }))
         .pipe($.if((compileEnv === 'production'), $.htmlMinifier({
             collapseWhitespace: (compileEnv === 'production'),
@@ -116,7 +132,7 @@ gulp.task('build-html', function (callback) {
  * BUILD-ALL
  */
 gulp.task('build-all', function (callback) {
-    return runSequence('clean', [ 'build-js', 'temp-copy-html' ], 'vulcanize-html', 'test:local', callback);
+    return runSequence('clean', [ 'build-js', 'build-css', 'temp-copy-html' ], 'vulcanize-html', 'test:local', callback);
 });
 
 
@@ -138,6 +154,9 @@ gulp.task('serve', ['build-all'], function () {
     for (var entryJs in entryJsArray) {
         watchArray.push(distDir + '/' + entryJsArray[entryJs]);
     }
+    for (var entryCss in entryCssArray) {
+        watchArray.push(distDir + '/' + entryJsArray[entryCss]);
+    }
 
     gulp.watch(watchArray).on('change', reload);
     gulp.watch(watchArray, ['test:local']);
@@ -149,6 +168,7 @@ gulp.task('serve', ['build-all'], function () {
  * DEFAULT
  */
 gulp.task('default', ['serve'], function () {
+    gulp.watch(srcDir + '/**/*.css', ['build-css']);
     gulp.watch(srcDir + '/**/*.js', ['build-js']);
     gulp.watch(srcDir + '/**/*.html', ['build-html']);
 });

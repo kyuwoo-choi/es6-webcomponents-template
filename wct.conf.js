@@ -1,8 +1,9 @@
 'use strict';
 
 module.exports = {
-    verbose: false,
-    plugins: {
+    verbose:           false,
+    trackConsoleError: false,
+    plugins:           {
         local: {
             browsers: ['chrome']
         },
