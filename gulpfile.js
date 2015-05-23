@@ -10,45 +10,45 @@ var browserSync = require('browser-sync').create();
 var reload = browserSync.reload;
 require('web-component-tester').gulp.init(gulp);
 
-
-var srcDir = argv.srcDir || 'src';
-var tempDir = argv.tempDir || '.tmp';
-var distDir = argv.distDir || 'dist';
-var testDir = argv.testDir || 'test';
-var indexFile = argv.index || 'example.html';
-var compileEnv = argv.env || process.env.NODE_ENV || 'development'; //'development' || 'production'
-var transpiler = argv.transpiler || 'es6ify'; //'babelify' || 'es6ify'
-var minifyHtml = argv.minifyHtml || argv.minify || (compileEnv === 'production');
-var minifyScript = argv.minifyScript || argv.minify || (compileEnv === 'production');
-var minifyCss = argv.minifyCss || argv.minify || (compileEnv === 'production');
-var inlineScript = argv.inlineScript || (compileEnv === 'production');
-var inlineCss = argv.inlineCss || false; //TODO vulcanize inlineCss option only works with <link rel="import" type="css> not <link rel="stylesheet"> so transform rel="stylesheet" to rel="import" first.
-var generateSourceMap = argv.generateSourceMap || (compileEnv === 'development');
+var opt = {};
+opt.srcDir = argv.srcDir || 'src';
+opt.tempDir = argv.tempDir || '.tmp';
+opt.distDir = argv.distDir || 'dist';
+opt.testDir = argv.testDir || 'test';
+opt.indexFile = argv.index || 'example.html';
+opt.compileEnv = argv.env || process.env.NODE_ENV || 'development'; //'development' || 'production'
+opt.transpiler = argv.transpiler || 'es6ify'; //'babelify' || 'es6ify'
+opt.minifyHtml = argv.minifyHtml || argv.minify || (opt.compileEnv === 'production');
+opt.minifyScript = argv.minifyScript || argv.minify || (opt.compileEnv === 'production');
+opt.minifyCss = argv.minifyCss || argv.minify || (opt.compileEnv === 'production');
+opt.inlineScript = argv.inlineScript || (opt.compileEnv === 'production');
+opt.inlineCss = argv.inlineCss || false; //TODO vulcanize inlineCss option only works with <link rel="import" type="css> not <link rel="stylesheet"> so transform rel="stylesheet" to rel="import" first.
+opt.generateSourceMap = argv.generateSourceMap || (opt.compileEnv === 'development');
 
 (function verbose (enabledChalk, disabledChalk) {
     function write (key, value) {
         console.log((value ? enabledChalk(key + value) : disabledChalk(key + value)));
     }
-    write('INDEX :              ', indexFile);
-    write('SRC DIR :            ', srcDir);
-    write('TEMP DIR :           ', tempDir);
-    write('DIST DIR :           ', distDir);
-    write('TEST DIR :           ', testDir);
-    write('ENV :                ', compileEnv);
-    write('TRANSPILER :         ', transpiler);
-    write('INLINE SCRIPT :      ', inlineScript);
-    write('INLINE CSS :         ', inlineCss);
-    write('MINIFY HTML :        ', minifyHtml);
-    write('MINIFY SCRIPT :      ', minifyScript);
-    write('MINIFY CSS :         ', minifyCss);
-    write('GENERATE SOURCEMAP : ', generateSourceMap);
+    write('INDEX :              ', opt.indexFile);
+    write('SRC DIR :            ', opt.srcDir);
+    write('TEMP DIR :           ', opt.tempDir);
+    write('DIST DIR :           ', opt.distDir);
+    write('TEST DIR :           ', opt.testDir);
+    write('ENV :                ', opt.compileEnv);
+    write('TRANSPILER :         ', opt.transpiler);
+    write('INLINE SCRIPT :      ', opt.inlineScript);
+    write('INLINE CSS :         ', opt.inlineCss);
+    write('MINIFY HTML :        ', opt.minifyHtml);
+    write('MINIFY SCRIPT :      ', opt.minifyScript);
+    write('MINIFY CSS :         ', opt.minifyCss);
+    write('GENERATE SOURCEMAP : ', opt.generateSourceMap);
 })(chalk.green, chalk.gray);
 
 /**
  * CLEAN:TEMP
  */
 gulp.task('clean:temp', function () {
-    return gulp.src([ tempDir ], { read: false })
+    return gulp.src([ opt.tempDir ], { read: false })
         .pipe($.plumber())
         .pipe($.clean());
 });
@@ -57,7 +57,7 @@ gulp.task('clean:temp', function () {
  * CLEAN:DIST
  */
 gulp.task('clean:dist', function () {
-    return gulp.src([ distDir ], { read: false })
+    return gulp.src([ opt.distDir ], { read: false })
         .pipe($.plumber())
         .pipe($.clean());
 });
@@ -74,9 +74,9 @@ gulp.task('clean', function (callback) {
  * COPY:HTML
  */
 gulp.task('copy:html', function () {
-    return gulp.src(srcDir + '/**/*.html')
+    return gulp.src(opt.srcDir + '/**/*.html')
         .pipe($.plumber())
-        .pipe(gulp.dest(tempDir));
+        .pipe(gulp.dest(opt.tempDir));
 });
 
 
@@ -89,12 +89,12 @@ gulp.task('copy:resource', function () {
         return file.stat.isFile();
     });
 
-    return gulp.src(srcDir + '/**')
+    return gulp.src(opt.srcDir + '/**')
         .pipe($.plumber())
         .pipe(excludeHtmlJsCssFilter)
         .pipe(excludeFolderFilter)
-        .pipe(gulp.dest(tempDir))
-        .pipe(gulp.dest(distDir))
+        .pipe(gulp.dest(opt.tempDir))
+        .pipe(gulp.dest(opt.distDir))
         .pipe(excludeFolderFilter.restore())
         .pipe(excludeHtmlJsCssFilter.restore());
 });
@@ -106,19 +106,19 @@ gulp.task('copy:resource', function () {
 gulp.task('vulcanize:html', function () {
     var injects = gulp.src([ es6ify.runtime ], { read: false });
 
-    return gulp.src(tempDir + '/*.html')
+    return gulp.src(opt.tempDir + '/*.html')
         .pipe($.plumber())
         .pipe($.inject(injects))
         .pipe($.vulcanize({
-            inlineScripts: inlineScript,
-            inlineCss:     inlineCss
+            inlineScripts: opt.inlineScript,
+            inlineCss:     opt.inlineCss
         }))
         .pipe($.htmlMinifier({
-            removeComments:     minifyHtml,
-            collapseWhitespace: minifyHtml,
-            preserveLineBreaks: !minifyHtml,
-            minifyJS:           minifyScript,
-            minifyCSS:          minifyCss
+            removeComments:     opt.minifyHtml,
+            collapseWhitespace: opt.minifyHtml,
+            preserveLineBreaks: !opt.minifyHtml,
+            minifyJS:           opt.minifyScript,
+            minifyCSS:          opt.minifyCss
         }))
         .pipe(gulp.dest('./dist'));
 });
@@ -128,25 +128,25 @@ gulp.task('vulcanize:html', function () {
  * BUILD:JS
  */
 gulp.task('build:js', function () {
-    return gulp.src(srcDir + '/**/*.js')
+    return gulp.src(opt.srcDir + '/**/*.js')
         .pipe($.plumber())
         .pipe($.eslint())
         .pipe($.eslint.format())
-        .pipe($.if(transpiler === 'babelify', $.browserify({
-            debug:     generateSourceMap,
+        .pipe($.if(opt.transpiler === 'babelify', $.browserify({
+            debug:     opt.generateSourceMap,
             transform: [ 'babelify' ]
         })))
-        .pipe($.if(transpiler === 'es6ify', $.browserify({
-            debug:     generateSourceMap,
+        .pipe($.if(opt.transpiler === 'es6ify', $.browserify({
+            debug:     opt.generateSourceMap,
             transform: [ 'es6ify' ]
         })))
-        .pipe($.if(generateSourceMap, $.sourcemaps.init({ loadMaps: true })))
-        .pipe($.if(minifyScript, $.uglify()))
-        .pipe($.if(generateSourceMap, $.sourcemaps.write('.', {
+        .pipe($.if(opt.generateSourceMap, $.sourcemaps.init({ loadMaps: true })))
+        .pipe($.if(opt.minifyScript, $.uglify()))
+        .pipe($.if(opt.generateSourceMap, $.sourcemaps.write('.', {
             sourceRoot: '.'
         })))
-        .pipe(gulp.dest(tempDir))
-        .pipe($.if((!inlineScript), gulp.dest(distDir)));
+        .pipe(gulp.dest(opt.tempDir))
+        .pipe($.if((!opt.inlineScript), gulp.dest(opt.distDir)));
 });
 
 
@@ -154,15 +154,15 @@ gulp.task('build:js', function () {
  * BUILD:CSS
  */
 gulp.task('build:css', function () {
-    return gulp.src(srcDir + '/**/*.css')
+    return gulp.src(opt.srcDir + '/**/*.css')
         .pipe($.plumber())
-        .pipe($.if(minifyCss && generateSourceMap, $.sourcemaps.init({ loadMaps: true })))
-        .pipe($.if(minifyCss, $.minifyCss()))
-        .pipe($.if(minifyCss && generateSourceMap, $.sourcemaps.write('.', {
+        .pipe($.if(opt.minifyCss && opt.generateSourceMap, $.sourcemaps.init({ loadMaps: true })))
+        .pipe($.if(opt.minifyCss, $.minifyCss()))
+        .pipe($.if(opt.minifyCss && opt.generateSourceMap, $.sourcemaps.write('.', {
             sourceRoot: '.'
         })))
-        .pipe(gulp.dest(tempDir))
-        .pipe($.if((!inlineCss), gulp.dest(distDir)));
+        .pipe(gulp.dest(opt.tempDir))
+        .pipe($.if((!opt.inlineCss), gulp.dest(opt.distDir)));
 });
 
 
@@ -189,14 +189,14 @@ gulp.task('serve', [ 'build:all' ], function () {
     browserSync.init({
         server: {
             baseDir: './',
-            index:   indexFile
+            index:   opt.indexFile
         }
     });
 
-    var watchList = [ distDir + '/*.html', distDir + '/*.js', distDir + '/*.css' ];
+    var watchList = [ opt.distDir + '/*.html', opt.distDir + '/*.js', opt.distDir + '/*.css' ];
     gulp.watch(watchList).on('change', reload);
     gulp.watch(watchList, [ 'test:local' ]);
-    gulp.watch(testDir + '/**/*', [ 'test:local' ]);
+    gulp.watch(opt.testDir + '/**/*', [ 'test:local' ]);
 });
 
 
@@ -204,7 +204,7 @@ gulp.task('serve', [ 'build:all' ], function () {
  * DEFAULT
  */
 gulp.task('default', [ 'serve' ], function () {
-    gulp.watch(srcDir + '/**/*.css', [ 'build:css' ]);
-    gulp.watch(srcDir + '/**/*.js', [ 'build:js' ]);
-    gulp.watch(srcDir + '/**/*.html', [ 'build:html' ]);
+    gulp.watch(opt.srcDir + '/**/*.css', [ 'build:css' ]);
+    gulp.watch(opt.srcDir + '/**/*.js', [ 'build:js' ]);
+    gulp.watch(opt.srcDir + '/**/*.html', [ 'build:html' ]);
 });
