@@ -5,7 +5,7 @@ module.exports = {
     trackConsoleError: false,
     plugins:           {
         local: {
-            browsers: []
+            browsers: [ 'chrome' ]
         },
         sauce: {
             browsers:  [ 'OS X 10.10/chrome@dev', 'Linux/android@4.4' ],

@@ -17,7 +17,7 @@ var distDir = argv.distDir || 'dist';
 var testDir = argv.testDir || 'test';
 var indexFile = argv.index || 'example.html';
 var compileEnv = argv.env || process.env.NODE_ENV || 'development'; //'development' || 'production'
-var transpiler = argv.transpiler || 'babelify'; //'babelify' || 'es6ify'
+var transpiler = argv.transpiler || 'es6ify'; //'babelify' || 'es6ify'
 var minifyHtml = argv.minifyHtml || argv.minify || (compileEnv === 'production');
 var minifyScript = argv.minifyScript || argv.minify || (compileEnv === 'production');
 var minifyCss = argv.minifyCss || argv.minify || (compileEnv === 'production');
@@ -45,12 +45,28 @@ var generateSourceMap = argv.generateSourceMap || (compileEnv === 'development')
 })(chalk.green, chalk.gray);
 
 /**
- * CLEAN
+ * CLEAN:TEMP
  */
-gulp.task('clean', function () {
-    return gulp.src([ tempDir, distDir ], { read: false })
+gulp.task('clean:temp', function () {
+    return gulp.src([ tempDir ], { read: false })
         .pipe($.plumber())
         .pipe($.clean());
+});
+
+/**
+ * CLEAN:DIST
+ */
+gulp.task('clean:dist', function () {
+    return gulp.src([ distDir ], { read: false })
+        .pipe($.plumber())
+        .pipe($.clean());
+});
+
+/**
+ * CLEAN
+ */
+gulp.task('clean', function (callback) {
+    return runSequence([ 'clean:temp', 'clean:dist' ], callback);
 });
 
 
@@ -88,8 +104,11 @@ gulp.task('copy:resource', function () {
  * VULCANIZE:HTML
  */
 gulp.task('vulcanize:html', function () {
+    var injects = gulp.src([ es6ify.runtime ], { read: false });
+
     return gulp.src(tempDir + '/*.html')
         .pipe($.plumber())
+        .pipe($.inject(injects))
         .pipe($.vulcanize({
             inlineScripts: inlineScript,
             inlineCss:     inlineCss
@@ -115,12 +134,11 @@ gulp.task('build:js', function () {
         .pipe($.eslint.format())
         .pipe($.if(transpiler === 'babelify', $.browserify({
             debug:     generateSourceMap,
-            transform: ['babelify']
+            transform: [ 'babelify' ]
         })))
         .pipe($.if(transpiler === 'es6ify', $.browserify({
             debug:     generateSourceMap,
-            add:       [es6ify.runtime],
-            transform: ['es6ify']
+            transform: [ 'es6ify' ]
         })))
         .pipe($.if(generateSourceMap, $.sourcemaps.init({ loadMaps: true })))
         .pipe($.if(minifyScript, $.uglify()))
@@ -152,7 +170,7 @@ gulp.task('build:css', function () {
  * BUILD:HTML
  */
 gulp.task('build:html', function (callback) {
-    return runSequence('copy:html', 'vulcanize:html', callback);
+    return runSequence('copy:html', 'vulcanize:html', 'clean:temp', callback);
 });
 
 
@@ -167,7 +185,7 @@ gulp.task('build:all', function (callback) {
 /*
  * SERVE
  */
-gulp.task('serve', ['build:all'], function () {
+gulp.task('serve', [ 'build:all' ], function () {
     browserSync.init({
         server: {
             baseDir: './',
@@ -177,16 +195,16 @@ gulp.task('serve', ['build:all'], function () {
 
     var watchList = [ distDir + '/*.html', distDir + '/*.js', distDir + '/*.css' ];
     gulp.watch(watchList).on('change', reload);
-    gulp.watch(watchList, ['test:local']);
-    gulp.watch(testDir + '/**/*', ['test:local']);
+    gulp.watch(watchList, [ 'test:local' ]);
+    gulp.watch(testDir + '/**/*', [ 'test:local' ]);
 });
 
 
 /**
  * DEFAULT
  */
-gulp.task('default', ['serve'], function () {
-    gulp.watch(srcDir + '/**/*.css', ['build:css']);
-    gulp.watch(srcDir + '/**/*.js', ['build:js']);
-    gulp.watch(srcDir + '/**/*.html', ['build:html']);
+gulp.task('default', [ 'serve' ], function () {
+    gulp.watch(srcDir + '/**/*.css', [ 'build:css' ]);
+    gulp.watch(srcDir + '/**/*.js', [ 'build:js' ]);
+    gulp.watch(srcDir + '/**/*.html', [ 'build:html' ]);
 });
