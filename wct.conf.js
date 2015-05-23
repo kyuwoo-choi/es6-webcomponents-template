@@ -5,10 +5,10 @@ module.exports = {
     trackConsoleError: false,
     plugins:           {
         local: {
-            browsers: ['chrome']
+            browsers: []
         },
         sauce: {
-            browsers:  [ 'OS X 10.10/chrome@dev', 'Linux/android@4.3', 'Linux/android@4.4' ],
+            browsers:  [ 'OS X 10.10/chrome@dev', 'Linux/android@4.4' ],
             username:  process.env.SAUCE_USERNAME,
             accessKey: process.env.SAUCE_ACCESS_KEY
         }

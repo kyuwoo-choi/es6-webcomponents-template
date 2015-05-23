@@ -1,5 +1,6 @@
 'use strict';
 
+var chalk = require('chalk');
 var gulp = require('gulp');
 var $ = require('gulp-load-plugins')();
 var es6ify = require('es6ify');
@@ -9,44 +10,54 @@ var browserSync = require('browser-sync').create();
 var reload = browserSync.reload;
 require('web-component-tester').gulp.init(gulp);
 
-var srcDir = './src';
-var tempDir = './.tmp';
-var distDir = './dist';
-var testDir = './test';
-var indexFile = './example.html';
-var entryHtmlArray = ['example-component.html'];
-var entryJsArray = ['example-component.js'];
-var entryCssArray = ['example-component.css'];
 
-var es6Transpiler = process.env.ES6_TRANSPILER || 'babelify'; //'babelify' || 'es6ify'
-if (argv.es6ify) {
-    es6Transpiler = 'es6ify';
-}
+var srcDir = argv.srcDir || 'src';
+var tempDir = argv.tempDir || '.tmp';
+var distDir = argv.distDir || 'dist';
+var testDir = argv.testDir || 'test';
+var indexFile = argv.index || 'example.html';
+var compileEnv = argv.env || process.env.NODE_ENV || 'development'; //'development' || 'production'
+var transpiler = argv.transpiler || 'babelify'; //'babelify' || 'es6ify'
+var minifyHtml = argv.minifyHtml || argv.minify || (compileEnv === 'production');
+var minifyScript = argv.minifyScript || argv.minify || (compileEnv === 'production');
+var minifyCss = argv.minifyCss || argv.minify || (compileEnv === 'production');
+var inlineScript = argv.inlineScript || (compileEnv === 'production');
+var inlineCss = argv.inlineCss || false; //TODO vulcanize inlineCss option only works with <link rel="import" type="css> not <link rel="stylesheet"> so transform rel="stylesheet" to rel="import" first.
+var generateSourceMap = argv.generateSourceMap || (compileEnv === 'development');
 
-var compileEnv = process.env.NODE_ENV || 'development'; //'development' || 'production'
-if (argv.production) {
-    compileEnv = 'production';
-}
-
-
-console.log('compile env : ' + compileEnv);
-console.log('es6 transpiler : ' + es6Transpiler);
-
+(function verbose (enabledChalk, disabledChalk) {
+    function write (key, value) {
+        console.log((value ? enabledChalk(key + value) : disabledChalk(key + value)));
+    }
+    write('INDEX :              ', indexFile);
+    write('SRC DIR :            ', srcDir);
+    write('TEMP DIR :           ', tempDir);
+    write('DIST DIR :           ', distDir);
+    write('TEST DIR :           ', testDir);
+    write('ENV :                ', compileEnv);
+    write('TRANSPILER :         ', transpiler);
+    write('INLINE SCRIPT :      ', inlineScript);
+    write('INLINE CSS :         ', inlineCss);
+    write('MINIFY HTML :        ', minifyHtml);
+    write('MINIFY SCRIPT :      ', minifyScript);
+    write('MINIFY CSS :         ', minifyCss);
+    write('GENERATE SOURCEMAP : ', generateSourceMap);
+})(chalk.green, chalk.gray);
 
 /**
  * CLEAN
  */
 gulp.task('clean', function () {
-    return gulp.src([ tempDir, distDir ])
+    return gulp.src([ tempDir, distDir ], { read: false })
         .pipe($.plumber())
         .pipe($.clean());
 });
 
 
 /**
- * TEMP-COPY-HTML
+ * COPY:HTML
  */
-gulp.task('temp-copy-html', function () {
+gulp.task('copy:html', function () {
     return gulp.src(srcDir + '/**/*.html')
         .pipe($.plumber())
         .pipe(gulp.dest(tempDir));
@@ -54,92 +65,109 @@ gulp.task('temp-copy-html', function () {
 
 
 /**
- * BUILD-JS
+ * COPY:RESOURCE
  */
-gulp.task('build-js', function () {
-    return gulp.src(srcDir + '/**/*.js')
+gulp.task('copy:resource', function () {
+    var excludeHtmlJsCssFilter = $.filter([ '**', '!**/*.html', '!**/*.js', '!**/*.css' ]);
+    var excludeFolderFilter = $.filter(function (file) {
+        return file.stat.isFile();
+    });
+
+    return gulp.src(srcDir + '/**')
         .pipe($.plumber())
-        .pipe($.eslint())
-        .pipe($.eslint.format())
-        .pipe($.if(es6Transpiler === 'babelify', $.browserify({
-            debug:     (compileEnv === 'development'),
-            transform: ['babelify']
-        })))
-        .pipe($.if(es6Transpiler === 'es6ify', $.browserify({
-            debug:     (compileEnv === 'development'),
-            add:       [es6ify.runtime],
-            transform: ['es6ify']
-        })))
-        .pipe($.sourcemaps.init({ loadMaps: true }))
-        .pipe($.uglify())
-        .pipe($.sourcemaps.write('.', {
-            sourceRoot: '.'
-        }))
+        .pipe(excludeHtmlJsCssFilter)
+        .pipe(excludeFolderFilter)
         .pipe(gulp.dest(tempDir))
-        .pipe($.if((compileEnv === 'development'), gulp.dest(distDir)));
+        .pipe(gulp.dest(distDir))
+        .pipe(excludeFolderFilter.restore())
+        .pipe(excludeHtmlJsCssFilter.restore());
 });
 
 
 /**
- * BUILD-CSS
+ * VULCANIZE:HTML
  */
-gulp.task('build-css', function () {
-    return gulp.src(srcDir + '/**/*.css')
-        .pipe($.plumber())
-        .pipe($.sourcemaps.init({ loadMaps: true }))
-        .pipe($.minifyCss())
-        .pipe($.sourcemaps.write('.', {
-            sourceRoot: '.'
-        }))
-        .pipe(gulp.dest(tempDir));
-});
-
-
-/**
- * VULCANIZE-HTML
- */
-gulp.task('vulcanize-html', function () {
-    var tempEntryHtml = [];
-    for (var entryHtml in entryHtmlArray) {
-        tempEntryHtml.push(tempDir + '/' + entryHtmlArray[entryHtml]);
-    }
-
-    return gulp.src(tempEntryHtml)
+gulp.task('vulcanize:html', function () {
+    return gulp.src(tempDir + '/*.html')
         .pipe($.plumber())
         .pipe($.vulcanize({
-            inlineScripts: (compileEnv === 'production'),
-            inlineCss:     true
+            inlineScripts: inlineScript,
+            inlineCss:     inlineCss
         }))
-        .pipe($.if((compileEnv === 'production'), $.htmlMinifier({
-            collapseWhitespace: (compileEnv === 'production'),
-            minifyJS:           (compileEnv === 'production'),
-            minifyCSS:          (compileEnv === 'production'),
-            removeComments:     (compileEnv === 'production')
-        })))
+        .pipe($.htmlMinifier({
+            removeComments:     minifyHtml,
+            collapseWhitespace: minifyHtml,
+            preserveLineBreaks: !minifyHtml,
+            minifyJS:           minifyScript,
+            minifyCSS:          minifyCss
+        }))
         .pipe(gulp.dest('./dist'));
 });
 
 
 /**
- * BUILD-HTML
+ * BUILD:JS
  */
-gulp.task('build-html', function (callback) {
-    return runSequence('temp-copy-html', 'vulcanize-html', callback);
+gulp.task('build:js', function () {
+    return gulp.src(srcDir + '/**/*.js')
+        .pipe($.plumber())
+        .pipe($.eslint())
+        .pipe($.eslint.format())
+        .pipe($.if(transpiler === 'babelify', $.browserify({
+            debug:     generateSourceMap,
+            transform: ['babelify']
+        })))
+        .pipe($.if(transpiler === 'es6ify', $.browserify({
+            debug:     generateSourceMap,
+            add:       [es6ify.runtime],
+            transform: ['es6ify']
+        })))
+        .pipe($.if(generateSourceMap, $.sourcemaps.init({ loadMaps: true })))
+        .pipe($.if(minifyScript, $.uglify()))
+        .pipe($.if(generateSourceMap, $.sourcemaps.write('.', {
+            sourceRoot: '.'
+        })))
+        .pipe(gulp.dest(tempDir))
+        .pipe($.if((!inlineScript), gulp.dest(distDir)));
 });
 
 
 /**
- * BUILD-ALL
+ * BUILD:CSS
  */
-gulp.task('build-all', function (callback) {
-    return runSequence('clean', [ 'build-js', 'build-css', 'temp-copy-html' ], 'vulcanize-html', 'test:local', callback);
+gulp.task('build:css', function () {
+    return gulp.src(srcDir + '/**/*.css')
+        .pipe($.plumber())
+        .pipe($.if(minifyCss && generateSourceMap, $.sourcemaps.init({ loadMaps: true })))
+        .pipe($.if(minifyCss, $.minifyCss()))
+        .pipe($.if(minifyCss && generateSourceMap, $.sourcemaps.write('.', {
+            sourceRoot: '.'
+        })))
+        .pipe(gulp.dest(tempDir))
+        .pipe($.if((!inlineCss), gulp.dest(distDir)));
+});
+
+
+/**
+ * BUILD:HTML
+ */
+gulp.task('build:html', function (callback) {
+    return runSequence('copy:html', 'vulcanize:html', callback);
+});
+
+
+/**
+ * BUILD:ALL
+ */
+gulp.task('build:all', function (callback) {
+    return runSequence('clean', 'copy:resource', [ 'build:js', 'build:css' ], 'build:html', 'test:local', callback);
 });
 
 
 /*
  * SERVE
  */
-gulp.task('serve', ['build-all'], function () {
+gulp.task('serve', ['build:all'], function () {
     browserSync.init({
         server: {
             baseDir: './',
@@ -147,19 +175,9 @@ gulp.task('serve', ['build-all'], function () {
         }
     });
 
-    var watchArray = [];
-    for (var entryHtml in entryHtmlArray) {
-        watchArray.push(distDir + '/' + entryHtmlArray[entryHtml]);
-    }
-    for (var entryJs in entryJsArray) {
-        watchArray.push(distDir + '/' + entryJsArray[entryJs]);
-    }
-    for (var entryCss in entryCssArray) {
-        watchArray.push(distDir + '/' + entryJsArray[entryCss]);
-    }
-
-    gulp.watch(watchArray).on('change', reload);
-    gulp.watch(watchArray, ['test:local']);
+    var watchList = [ distDir + '/*.html', distDir + '/*.js', distDir + '/*.css' ];
+    gulp.watch(watchList).on('change', reload);
+    gulp.watch(watchList, ['test:local']);
     gulp.watch(testDir + '/**/*', ['test:local']);
 });
 
@@ -168,7 +186,7 @@ gulp.task('serve', ['build-all'], function () {
  * DEFAULT
  */
 gulp.task('default', ['serve'], function () {
-    gulp.watch(srcDir + '/**/*.css', ['build-css']);
-    gulp.watch(srcDir + '/**/*.js', ['build-js']);
-    gulp.watch(srcDir + '/**/*.html', ['build-html']);
+    gulp.watch(srcDir + '/**/*.css', ['build:css']);
+    gulp.watch(srcDir + '/**/*.js', ['build:js']);
+    gulp.watch(srcDir + '/**/*.html', ['build:html']);
 });
