@@ -24,12 +24,12 @@
     "space-before-blocks": [2, "always"],
     "space-before-function-paren": [2, "always"],
     "space-in-brackets": [2, "always", {
-      "singleValue": false,
+      "singleValue": true,
       "objectsInArrays": true,
       "arraysInArrays": true,
       "arraysInObjects": true,
       "objectsInObjects": true,
-      "propertyName": false
+      "propertyName": true
     }],
     "space-in-parens": [2, "never"],
     "space-infix-ops": 2,
