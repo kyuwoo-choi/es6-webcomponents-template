@@ -4,26 +4,25 @@ var path = require('path');
 var chalk = require('chalk');
 var gulp = require('gulp');
 var $ = require('gulp-load-plugins')();
-//var es6ify = require('es6ify');
 var runSequence = require('run-sequence');
 var argv = require('yargs').argv;
 var browserSync = require('browser-sync').create();
 require('web-component-tester').gulp.init(gulp);
 
 var opt = {};
-opt.srcDir = argv.srcDir || 'src';
+opt.srcDir = argv.srcDir || 'app';
 opt.wwwDir = argv.wwwDir || 'www';
 opt.componentDir = argv.componentDir || 'component';
-opt.tempDir = argv.tempDir || '.tmp';
-opt.distDir = argv.distDir || 'dist';
+opt.tempDir = argv.tempDir || '.appTemp';
+opt.distDir = argv.distDir || 'appDist';
 opt.testDir = argv.testDir || 'test';
-opt.indexFile = argv.index || 'dist/www/index.html';
+opt.indexFile = argv.index || path.join(opt.distDir, opt.wwwDir, 'index.html');
 opt.compileEnv = argv.env || process.env.NODE_ENV || 'development'; //'development' || 'production'
 opt.transpiler = argv.transpiler || 'traceur'; //'babel' || 'traceur'
 opt.minifyHtml = argv.minifyHtml || argv.minify || (opt.compileEnv === 'production');
 opt.minifyScript = argv.minifyScript || argv.minify || (opt.compileEnv === 'production');
 opt.minifyCss = argv.minifyCss || argv.minify || (opt.compileEnv === 'production');
-opt.inlineScript = argv.inlineScript || (opt.compileEnv === 'production');
+opt.inlineScript = argv.inlineScript || false; //TODO vulcanize inlineScript breaks in some cases. https://github.com/Polymer/vulcanize/issues/113
 opt.inlineCss = argv.inlineCss || false; //TODO vulcanize inlineCss option only works with <link rel="import" type="css> not <link rel="stylesheet"> so transform rel="stylesheet" to rel="import" first.
 opt.generateSourceMap = argv.generateSourceMap || (opt.compileEnv === 'development');
 
@@ -58,23 +57,24 @@ gulp.task('clean', function () {
 
 
 /**
- * COPY:HTML
+ * PREPARE:HTML
  */
-gulp.task('copy:html', function () {
-    var indexHtmlFilter = $.filter([ 'www/*.html' ]);
+gulp.task('prepare:html', function () {
+    var injectFiles = [ 'bower_components/webcomponentsjs/webcomponents.js' ];
+    if (opt.transpiler === 'traceur') {
+        injectFiles.push($.traceur.RUNTIME_PATH);
+    }
     return gulp.src(opt.srcDir + '/**/*.html')
         .pipe($.plumber())
-        .pipe(gulp.dest(opt.tempDir))
-        .pipe(indexHtmlFilter)
-        .pipe(gulp.dest(opt.distDir))
-        .pipe(indexHtmlFilter.restore());
+        .pipe($.inject(gulp.src(injectFiles, { read: false }), { relative: true }))
+        .pipe(gulp.dest(opt.tempDir));
 });
 
 
 /**
- * COPY:RESOURCE
+ * PREPARE:RESOURCE
  */
-gulp.task('copy:resource', function () {
+gulp.task('prepare:resource', function () {
     var excludeHtmlJsCssFilter = $.filter([ '**', '!**/*.html', '!**/*.js', '!**/*.css' ]);
     var excludeFolderFilter = $.filter(function (file) {
         return file.stat.isFile();
@@ -91,21 +91,14 @@ gulp.task('copy:resource', function () {
 });
 
 
+
+
 /**
- * VULCANIZE:HTML
+ * BUILD:HTML
  */
-gulp.task('vulcanize:html', function () {
-    var injectFiles = gulp.src([ $.traceur.RUNTIME_PATH ], { read: false });
-
-    var wwwFilter = $.filter([ '*.html' ]);
-    var componentFilter = $.filter([ opt.componentDir + '/*.html' ]);
-
-    return gulp.src(path.join(opt.tempDir, opt.wwwDir) + '/**/*.html')
+gulp.task('build:html', [ 'prepare:html' ], function () {
+    return gulp.src(path.join(opt.tempDir, opt.wwwDir) + '/*.html')
         .pipe($.plumber())
-        .pipe(wwwFilter)
-        .pipe($.if(opt.transpiler === 'traceur', $.inject(injectFiles, { relative: true })))
-        .pipe(wwwFilter.restore())
-        .pipe(componentFilter)
         .pipe($.vulcanize({
             inlineScripts: opt.inlineScript,
             inlineCss:     opt.inlineCss
@@ -117,7 +110,6 @@ gulp.task('vulcanize:html', function () {
             minifyJS:           opt.minifyScript,
             minifyCSS:          opt.minifyCss
         }))
-        .pipe(componentFilter.restore())
         .pipe(gulp.dest(path.join(opt.distDir, opt.wwwDir)));
 });
 
@@ -164,19 +156,10 @@ gulp.task('build:css', function () {
 
 
 /**
- * BUILD:HTML
- */
-gulp.task('build:html', function (callback) {
-    return runSequence('copy:html', 'vulcanize:html', callback);
-});
-
-
-/**
  * BUILD:ALL
  */
-gulp.task('build:all', function (callback) {
-    //return runSequence('clean', 'copy:resource', [ 'build:js', 'build:css' ], 'build:html', 'test:local', callback);
-    return runSequence('clean', 'copy:resource', [ 'build:js', 'build:css' ], 'build:html', 'test:local', callback);
+gulp.task('build:all', [ 'clean' ], function (callback) {
+    return runSequence([ 'prepare:resource', 'build:js', 'build:css' ], 'build:html', 'test:local', callback);
 });
 
 
