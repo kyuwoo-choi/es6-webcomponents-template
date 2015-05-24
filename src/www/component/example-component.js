@@ -9,7 +9,8 @@ class ExampleComponent extends HTMLElement {
     createdCallback () {
         var shadow = this.createShadowRoot();
 
-        var template = this.ownerDocument.querySelector('link[rel="import"]').import.querySelector('#example-component');
+        var template = this.ownerDocument.querySelector('#example-component')
+            || this.ownerDocument.querySelector('link[rel="import"]').import.querySelector('#example-component');
         var templateInstance = this.ownerDocument.importNode(template.content, true);
 
         shadow.appendChild(templateInstance);

@@ -9,7 +9,8 @@ class RequiredComponent extends HTMLElement {
     createdCallback () {
         var shadow = this.createShadowRoot();
 
-        var template = this.ownerDocument.querySelector('link[rel="import"]').import.querySelector('#required-component');
+        var template = this.ownerDocument.querySelector('#required-component')
+            || this.ownerDocument.querySelector('link[rel="import"]').import.querySelector('#required-component');
         var templateInstance = this.ownerDocument.importNode(template.content, true);
 
         shadow.appendChild(templateInstance);
