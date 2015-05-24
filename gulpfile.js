@@ -60,14 +60,31 @@ gulp.task('clean', function () {
  * PREPARE:HTML
  */
 gulp.task('prepare:html', function () {
-    var injectFiles = [ 'bower_components/webcomponentsjs/webcomponents.js' ];
+    var injectFiles = [ path.join(opt.tempDir, opt.wwwDir, 'bower_components', 'webcomponentsjs', 'webcomponents.js') ];
     if (opt.transpiler === 'traceur') {
-        injectFiles.push($.traceur.RUNTIME_PATH);
+        injectFiles.push(path.join(opt.tempDir, opt.wwwDir, 'bower_components', 'traceur-runtime', 'traceur-runtime.js'));
     }
     return gulp.src(opt.srcDir + '/**/*.html')
         .pipe($.plumber())
-        .pipe($.inject(gulp.src(injectFiles, { read: false }), { relative: true }))
+        .pipe($.inject(gulp.src(injectFiles, { read: false }), {
+            relative: true,
+            transform: function (filepath) {
+                //inject file path rewrite.
+                arguments[ 0 ] = path.relative(path.resolve(opt.tempDir, opt.wwwDir), path.resolve(opt.tempDir, opt.wwwDir, filepath));
+                return $.inject.transform.apply($.inject.transform, arguments);
+            }
+        }))
         .pipe(gulp.dest(opt.tempDir));
+});
+
+
+/**
+ * PREPARE:JS
+ */
+gulp.task('prepare:js', function () {
+    return gulp.src('bower_components/**')
+        .pipe(gulp.dest(path.join(opt.tempDir, 'www', 'bower_components')))
+        .pipe($.if(!opt.inlineScript, gulp.dest(path.join(opt.distDir, 'www', 'bower_components'))));
 });
 
 
@@ -97,6 +114,10 @@ gulp.task('prepare:resource', function () {
  * BUILD:HTML
  */
 gulp.task('build:html', [ 'prepare:html' ], function () {
+    var injectFiles = [ path.join(opt.tempDir, opt.wwwDir, 'bower_components', 'webcomponentsjs', 'webcomponents.js') ];
+    if (opt.transpiler === 'traceur') {
+        injectFiles.push(path.join(opt.tempDir, opt.wwwDir, 'bower_components', 'traceur-runtime', 'traceur-runtime.js'));
+    }
     return gulp.src(path.join(opt.tempDir, opt.wwwDir) + '/*.html')
         .pipe($.plumber())
         .pipe($.vulcanize({
@@ -117,7 +138,7 @@ gulp.task('build:html', [ 'prepare:html' ], function () {
 /**
  * BUILD:JS
  */
-gulp.task('build:js', function () {
+gulp.task('build:js', [ 'prepare:js' ], function () {
     var wwwFilter = $.filter([ opt.wwwDir + '/**/*.js' ]);
 
     return gulp.src(opt.srcDir + '/**/*.js')
