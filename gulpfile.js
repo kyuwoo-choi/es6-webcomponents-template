@@ -11,12 +11,11 @@ require('web-component-tester').gulp.init(gulp);
 
 var opt = {};
 opt.srcDir = argv.srcDir || 'src';
-opt.wwwDir = argv.wwwDir || 'www';
 opt.componentDir = argv.componentDir || 'component';
-opt.tempDir = argv.tempDir || '.tempApp';
-opt.distDir = argv.distDir || 'dist/app';
+opt.tempDir = argv.tempDir || '.temp';
+opt.distDir = argv.distDir || 'dist';
 opt.testDir = argv.testDir || 'test';
-opt.indexFile = argv.index || path.join(opt.distDir, opt.wwwDir, 'index.html');
+opt.indexFile = argv.index || path.join(opt.distDir, 'index.html');
 opt.compileEnv = argv.env || process.env.NODE_ENV || 'development'; //'development' || 'production'
 opt.transpiler = argv.transpiler || 'traceur'; //'babel' || 'traceur'
 opt.minifyHtml = argv.minifyHtml || argv.minify || (opt.compileEnv === 'production');
@@ -25,6 +24,7 @@ opt.minifyCss = argv.minifyCss || argv.minify || (opt.compileEnv === 'production
 opt.inlineScript = argv.inlineScript || false; //TODO vulcanize inlineScript breaks in some cases. https://github.com/Polymer/vulcanize/issues/113
 opt.inlineCss = argv.inlineCss || false; //TODO vulcanize inlineCss option only works with <link rel="import" type="css> not <link rel="stylesheet"> so transform rel="stylesheet" to rel="import" first.
 opt.generateSourceMap = argv.generateSourceMap || (opt.compileEnv === 'development');
+
 
 (function verbose (enabledChalk, disabledChalk) {
     function write (key, value) {
@@ -60,9 +60,9 @@ gulp.task('clean', function () {
  * PREPARE:HTML
  */
 gulp.task('prepare:html', function () {
-    var injectFiles = [ path.join(opt.tempDir, opt.wwwDir, 'bower_components', 'webcomponentsjs', 'webcomponents.js') ];
+    var injectFiles = [ path.join(opt.tempDir, 'bower_components', 'webcomponentsjs', 'webcomponents.js') ];
     if (opt.transpiler === 'traceur') {
-        injectFiles.push(path.join(opt.tempDir, opt.wwwDir, 'bower_components', 'traceur-runtime', 'traceur-runtime.js'));
+        injectFiles.push(path.join(opt.tempDir, 'bower_components', 'traceur-runtime', 'traceur-runtime.js'));
     }
     return gulp.src(opt.srcDir + '/**/*.html')
         .pipe($.plumber())
@@ -70,7 +70,7 @@ gulp.task('prepare:html', function () {
             relative: true,
             transform: function (filepath) {
                 //inject file path rewrite.
-                arguments[ 0 ] = path.relative(path.resolve(opt.tempDir, opt.wwwDir), path.resolve(opt.tempDir, opt.wwwDir, filepath));
+                arguments[ 0 ] = path.relative(path.resolve(opt.tempDir), path.resolve(opt.tempDir, filepath));
                 return $.inject.transform.apply($.inject.transform, arguments);
             }
         }))
@@ -84,8 +84,8 @@ gulp.task('prepare:html', function () {
 gulp.task('prepare:js', function () {
     //TODO minifying bower_components js needed
     return gulp.src('bower_components/**')
-        .pipe(gulp.dest(path.join(opt.tempDir, 'www', 'bower_components')))
-        .pipe($.if(!opt.inlineScript, gulp.dest(path.join(opt.distDir, 'www', 'bower_components'))));
+        .pipe(gulp.dest(path.join(opt.tempDir, 'bower_components')))
+        .pipe($.if(!opt.inlineScript, gulp.dest(path.join(opt.distDir, 'bower_components'))));
 });
 
 
@@ -115,11 +115,11 @@ gulp.task('prepare:resource', function () {
  * BUILD:HTML
  */
 gulp.task('build:html', [ 'prepare:html' ], function () {
-    var injectFiles = [ path.join(opt.tempDir, opt.wwwDir, 'bower_components', 'webcomponentsjs', 'webcomponents.js') ];
+    var injectFiles = [ path.join(opt.tempDir, 'bower_components', 'webcomponentsjs', 'webcomponents.js') ];
     if (opt.transpiler === 'traceur') {
-        injectFiles.push(path.join(opt.tempDir, opt.wwwDir, 'bower_components', 'traceur-runtime', 'traceur-runtime.js'));
+        injectFiles.push(path.join(opt.tempDir, 'bower_components', 'traceur-runtime', 'traceur-runtime.js'));
     }
-    return gulp.src(path.join(opt.tempDir, opt.wwwDir) + '/*.html')
+    return gulp.src(opt.tempDir + '/*.html')
         .pipe($.plumber())
         .pipe($.vulcanize({
             inlineScripts: opt.inlineScript,
@@ -132,7 +132,7 @@ gulp.task('build:html', [ 'prepare:html' ], function () {
             minifyJS:           opt.minifyScript,
             minifyCSS:          opt.minifyCss
         }))
-        .pipe(gulp.dest(path.join(opt.distDir, opt.wwwDir)));
+        .pipe(gulp.dest(opt.distDir));
 });
 
 
@@ -140,7 +140,7 @@ gulp.task('build:html', [ 'prepare:html' ], function () {
  * BUILD:JS
  */
 gulp.task('build:js', [ 'prepare:js' ], function () {
-    var wwwFilter = $.filter([ opt.wwwDir + '/**/*.js' ]);
+    var wwwFilter = $.filter([ '**/*.js', '!lib/**/*.js' ]);
 
     return gulp.src(opt.srcDir + '/**/*.js')
         .pipe($.plumber())
@@ -189,9 +189,8 @@ gulp.task('build:all', [ 'clean' ], function (callback) {
  * SERVE
  */
 gulp.task('serve', [ 'build:all' ], function () {
-    var wwwDir = path.join(opt.distDir, opt.wwwDir);
-    var componentDir = path.join(opt.distDir, opt.wwwDir, opt.componentDir);
-    var watchList = [ wwwDir + '/*.html', wwwDir + '/*.js', wwwDir + '/*.css',
+    var componentDir = path.join(opt.distDir, opt.componentDir);
+    var watchList = [ '*.html', '*.js', '*.css',
         componentDir + '/*.html', componentDir + '/*.js', componentDir + '/*.css' ];
 
     browserSync.init({
