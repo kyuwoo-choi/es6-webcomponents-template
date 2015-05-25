@@ -17,6 +17,7 @@
     "webcomponentsjs": "~0.6.1"
   },
   "dependencies": {
-    "webcomponentsjs": "~0.6.1"
+    "webcomponentsjs": "~0.6.1",
+    "traceur-runtime": "~0.0.89"
   }
 }
