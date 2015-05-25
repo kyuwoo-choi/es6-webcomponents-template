@@ -10,11 +10,11 @@ var browserSync = require('browser-sync').create();
 require('web-component-tester').gulp.init(gulp);
 
 var opt = {};
-opt.srcDir = argv.srcDir || 'app';
+opt.srcDir = argv.srcDir || 'src';
 opt.wwwDir = argv.wwwDir || 'www';
 opt.componentDir = argv.componentDir || 'component';
-opt.tempDir = argv.tempDir || '.appTemp';
-opt.distDir = argv.distDir || 'appDist';
+opt.tempDir = argv.tempDir || '.tempApp';
+opt.distDir = argv.distDir || 'dist/app';
 opt.testDir = argv.testDir || 'test';
 opt.indexFile = argv.index || path.join(opt.distDir, opt.wwwDir, 'index.html');
 opt.compileEnv = argv.env || process.env.NODE_ENV || 'development'; //'development' || 'production'
@@ -82,6 +82,7 @@ gulp.task('prepare:html', function () {
  * PREPARE:JS
  */
 gulp.task('prepare:js', function () {
+    //TODO minifying bower_components js needed
     return gulp.src('bower_components/**')
         .pipe(gulp.dest(path.join(opt.tempDir, 'www', 'bower_components')))
         .pipe($.if(!opt.inlineScript, gulp.dest(path.join(opt.distDir, 'www', 'bower_components'))));
