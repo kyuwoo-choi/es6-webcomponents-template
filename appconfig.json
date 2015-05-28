@@ -1,0 +1,10 @@
+{
+  "version":            "0.26.1",
+  "name":               "AwsomeApp",
+  "app-bundle-id":      "com.example.awesomeapp",
+  "helper-bundle-id":   "com.example.awesomeapp.helper",
+  "app-version":        "0.0.1",
+  "main":               "src/main.js",
+  "protocols":          null,
+  "icon":               null
+}
