@@ -15,16 +15,17 @@ opt.componentDir = argv.componentDir || 'component';
 opt.tempDir = argv.tempDir || '.temp';
 opt.distDir = argv.distDir || 'dist';
 opt.testDir = argv.testDir || 'test';
-opt.indexFile = argv.index || path.join(opt.distDir, 'index.html');
+opt.indexFile = argv.index || 'index.html';
 opt.compileEnv = argv.env || process.env.NODE_ENV || 'development'; //'development' || 'production'
 opt.transpiler = argv.transpiler || 'traceur'; //'babel' || 'traceur'
 opt.minifyHtml = argv.minifyHtml || argv.minify || (opt.compileEnv === 'production');
 opt.minifyScript = argv.minifyScript || argv.minify || (opt.compileEnv === 'production');
 opt.minifyCss = argv.minifyCss || argv.minify || (opt.compileEnv === 'production');
-opt.inlineScript = argv.inlineScript || false; //TODO vulcanize inlineScript breaks in some cases. https://github.com/Polymer/vulcanize/issues/113
-opt.inlineCss = argv.inlineCss || false; //TODO vulcanize inlineCss option only works with <link rel="import" type="css> not <link rel="stylesheet"> so transform rel="stylesheet" to rel="import" first.
+opt.inlineScript = argv.inlineScript || (opt.compileEnv === 'production');
+opt.inlineCss = argv.inlineCss || (opt.compileEnv === 'production');
 opt.generateSourceMap = argv.generateSourceMap || (opt.compileEnv === 'development');
-
+opt.excludeVulcanize = argv.excludeVulcanize || [ path.join('bower_components', 'webcomponentsjs') ];
+//TODO vulcanize inlineScript breaks in some cases. https://github.com/Polymer/vulcanize/issues/113
 
 (function verbose (enabledChalk, disabledChalk) {
     function write (key, value) {
@@ -43,6 +44,7 @@ opt.generateSourceMap = argv.generateSourceMap || (opt.compileEnv === 'developme
     write('MINIFY SCRIPT :      ', opt.minifyScript);
     write('MINIFY CSS :         ', opt.minifyCss);
     write('GENERATE SOURCEMAP : ', opt.generateSourceMap);
+    write('EXCLUDE VULCANIZE :  ', opt.excludeVulcanize);
 })(chalk.green, chalk.gray);
 
 
@@ -60,9 +62,9 @@ gulp.task('clean', function () {
  * PREPARE:HTML
  */
 gulp.task('prepare:html', function () {
-    var injectFiles = [ path.join(opt.tempDir, 'bower_components', 'webcomponentsjs', 'webcomponents.js') ];
+    var injectFiles = [ path.join(opt.srcDir, 'bower_components', 'webcomponentsjs', 'webcomponents.js') ];
     if (opt.transpiler === 'traceur') {
-        injectFiles.push(path.join(opt.tempDir, 'bower_components', 'traceur-runtime', 'traceur-runtime.js'));
+        injectFiles.push(path.join(opt.srcDir, 'bower_components', 'traceur-runtime', 'traceur-runtime.js'));
     }
     return gulp.src(opt.srcDir + '/**/*.html')
         .pipe($.plumber())
@@ -70,7 +72,7 @@ gulp.task('prepare:html', function () {
             relative: true,
             transform: function (filepath) {
                 //inject file path rewrite.
-                arguments[ 0 ] = path.relative(path.resolve(opt.tempDir), path.resolve(opt.tempDir, filepath));
+                arguments[ 0 ] = path.relative(path.resolve(opt.srcDir), path.resolve(opt.srcDir, filepath));
                 return $.inject.transform.apply($.inject.transform, arguments);
             }
         }))
@@ -83,9 +85,6 @@ gulp.task('prepare:html', function () {
  */
 gulp.task('prepare:js', function () {
     //TODO minifying bower_components js needed
-    return gulp.src('bower_components/**')
-        .pipe(gulp.dest(path.join(opt.tempDir, 'bower_components')))
-        .pipe($.if(!opt.inlineScript, gulp.dest(path.join(opt.distDir, 'bower_components'))));
 });
 
 
@@ -93,11 +92,10 @@ gulp.task('prepare:js', function () {
  * PREPARE:RESOURCE
  */
 gulp.task('prepare:resource', function () {
-    var excludeHtmlJsCssFilter = $.filter([ '**', '!**/*.html', '!**/*.js', '!**/*.css' ]);
+    var excludeHtmlJsCssFilter = $.filter([ '**', '!**/*.html', '!**/*.js', '!**/*.css', '!bower_components/**', '!bower.json' ]);
     var excludeFolderFilter = $.filter(function (file) {
         return file.stat.isFile();
     });
-
     return gulp.src(opt.srcDir + '/**')
         .pipe($.plumber())
         .pipe(excludeHtmlJsCssFilter)
@@ -115,13 +113,11 @@ gulp.task('prepare:resource', function () {
  * BUILD:HTML
  */
 gulp.task('build:html', [ 'prepare:html' ], function () {
-    var injectFiles = [ path.join(opt.tempDir, 'bower_components', 'webcomponentsjs', 'webcomponents.js') ];
-    if (opt.transpiler === 'traceur') {
-        injectFiles.push(path.join(opt.tempDir, 'bower_components', 'traceur-runtime', 'traceur-runtime.js'));
-    }
     return gulp.src(opt.tempDir + '/*.html')
         .pipe($.plumber())
         .pipe($.vulcanize({
+            implicitStrip: false,
+            excludes: opt.excludeVulcanize,
             inlineScripts: opt.inlineScript,
             inlineCss:     opt.inlineCss
         }))
@@ -140,23 +136,38 @@ gulp.task('build:html', [ 'prepare:html' ], function () {
  * BUILD:JS
  */
 gulp.task('build:js', [ 'prepare:js' ], function () {
-    var wwwFilter = $.filter([ '**/*.js', '!lib/**/*.js' ]);
+    var transpileFilter = $.filter([ '**/*.js', '!bower_components/**/*.js' ]);
+    var browserifyFilter = $.filter([ '**/*.js', '!bower_components/**/*.js', '!js/lib/**/*.js' ]);
+    var bowerComponentsFilter = $.filter([ '**/*.js', '!bower_components/**/*.js' ]);
+    var excludedVulcanizeGlobs = [];
+    for (var i = 0; i < opt.excludeVulcanize.length; i += 1) {
+        excludedVulcanizeGlobs.push(opt.excludeVulcanize[i] + '/**/*.js')
+        excludedVulcanizeGlobs.push( '!' + opt.excludeVulcanize[i] + '/**/*.min.js')
+    }
+    var excludedVulcanizeFilter = $.filter(excludedVulcanizeGlobs);
 
     return gulp.src(opt.srcDir + '/**/*.js')
         .pipe($.plumber())
+        .pipe(bowerComponentsFilter)
         .pipe($.eslint())
         .pipe($.eslint.format())
+        .pipe(bowerComponentsFilter.restore())
         .pipe($.if(opt.generateSourceMap, $.sourcemaps.init({ loadMaps: true })))
+        .pipe(transpileFilter)
         .pipe($.if(opt.transpiler === 'babel', $.babel()))
         .pipe($.if(opt.transpiler === 'traceur', $.traceur()))
-        .pipe(wwwFilter)
+        .pipe(transpileFilter.restore())
+        .pipe(browserifyFilter)
         .pipe($.browserify())
-        .pipe(wwwFilter.restore())
+        .pipe(browserifyFilter.restore())
         .pipe($.if(opt.minifyScript, $.uglify()))
         .pipe($.if(opt.generateSourceMap, $.sourcemaps.write('.', {
             sourceRoot: '.'
         })))
         .pipe(gulp.dest(opt.tempDir))
+        .pipe(excludedVulcanizeFilter) //copy to dist if it isn't vulcanized script.
+        .pipe(gulp.dest(opt.distDir))
+        .pipe(excludedVulcanizeFilter.restore())
         .pipe($.if((!opt.inlineScript), gulp.dest(opt.distDir)));
 });
 
@@ -189,19 +200,15 @@ gulp.task('build:all', [ 'clean' ], function (callback) {
  * SERVE
  */
 gulp.task('serve', [ 'build:all' ], function () {
-    var componentDir = path.join(opt.distDir, opt.componentDir);
-    var watchList = [ '*.html', '*.js', '*.css',
-        componentDir + '/*.html', componentDir + '/*.js', componentDir + '/*.css' ];
+    var watchList = [ opt.distDir + '/*', opt.distDir + '/component/**', opt.distDir + '/js/**', opt.testDir + '/**' ];
 
     browserSync.init({
         files: watchList,
         startPath: opt.indexFile,
         server: {
-            baseDir: './'
+            baseDir: opt.distDir
         }
     });
-    gulp.watch(watchList, [ 'test:local' ]);
-    gulp.watch(opt.testDir + '/**/*', [ 'test:local' ]);
 });
 
 
