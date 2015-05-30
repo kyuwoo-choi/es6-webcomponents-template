@@ -1,5 +1,8 @@
 'use strict';
 
+var os = require('os');
+var fs = require('fs');
+var ifaces = os.networkInterfaces();
 var path = require('path');
 var chalk = require('chalk');
 var gulp = require('gulp');
@@ -8,6 +11,11 @@ var runSequence = require('run-sequence');
 var argv = require('yargs').argv;
 var browserSync = require('browser-sync').create();
 require('web-component-tester').gulp.init(gulp);
+var cordova = require('cordova-lib').cordova.raw; // promises API
+var cordovaConfig = require('cordova-lib/src/configparser/ConfigParser');
+var et = require('cordova-lib/node_modules/elementtree');
+var packageJson = require('./package.json');
+var appConfig = require('./appconfig.json');
 
 var opt = {};
 opt.srcDir = argv.srcDir || 'src';
@@ -26,6 +34,14 @@ opt.inlineCss = argv.inlineCss || (opt.compileEnv === 'production');
 opt.generateSourceMap = argv.generateSourceMap || (opt.compileEnv === 'development');
 opt.excludeVulcanize = argv.excludeVulcanize || [ path.join('bower_components', 'webcomponentsjs') ];
 //TODO vulcanize inlineScript breaks in some cases. https://github.com/Polymer/vulcanize/issues/113
+opt.binDir = argv.binDir || 'bin';
+opt.cordovaPlugins = argv.cordovaPlugins || appConfig.cordova.plugins ||  [];
+opt.cordovaPlatform = argv.cordovaPlatform || 'android'; //android || ios
+opt.packageName = argv.packageName || appConfig[ 'app-bundle-id' ] || 'com.example';
+opt.helperPackageName = argv.helperPackageName || appConfig[ 'helper-bundle-id' ] || 'com.example.helper';
+opt.name = argv.name || appConfig[ 'name' ] || packageJson.name || 'test';
+opt.version = argv.version || appConfig[ 'app-version' ] || packageJson.version || '0.0.1';
+opt.remoteIndex = argv.remoteIndex;
 
 (function verbose (enabledChalk, disabledChalk) {
     function write (key, value) {
@@ -36,6 +52,7 @@ opt.excludeVulcanize = argv.excludeVulcanize || [ path.join('bower_components', 
     write('TEMP DIR :           ', opt.tempDir);
     write('DIST DIR :           ', opt.distDir);
     write('TEST DIR :           ', opt.testDir);
+    write('BIN DIR :            ', opt.binDir);
     write('ENV :                ', opt.compileEnv);
     write('TRANSPILER :         ', opt.transpiler);
     write('INLINE SCRIPT :      ', opt.inlineScript);
@@ -45,16 +62,39 @@ opt.excludeVulcanize = argv.excludeVulcanize || [ path.join('bower_components', 
     write('MINIFY CSS :         ', opt.minifyCss);
     write('GENERATE SOURCEMAP : ', opt.generateSourceMap);
     write('EXCLUDE VULCANIZE :  ', opt.excludeVulcanize);
+    write('NAME :               ', opt.name);
+    write('VERSION :            ', opt.version);
+    write('PACKAGE NAME :       ', opt.packageName);
+    write('CORDOVA PLATFORM :   ', opt.cordovaPlatform);
+    write('CORDOVA PLUGINS :    ', opt.cordovaPlugins);
 })(chalk.green, chalk.gray);
 
 
 /**
- * CLEAN
+ * CLEAN:WWW
  */
-gulp.task('clean', function () {
+gulp.task('clean:www', function () {
     return gulp.src([ opt.tempDir, opt.distDir ], { read: false })
         .pipe($.plumber())
         .pipe($.clean());
+});
+
+
+/**
+ * CLEAN:CORDOVA
+ */
+gulp.task('clean:cordova', function () {
+    return gulp.src([ opt.binDir ], { read: false })
+        .pipe($.plumber())
+        .pipe($.clean());
+});
+
+
+/**
+ * CLEAN:ALL
+ */
+gulp.task('clean:all', function (callback) {
+    runSequence([ 'clean:www', 'clean:cordova'], callback);
 });
 
 
@@ -191,15 +231,15 @@ gulp.task('build:css', function () {
 /**
  * BUILD:ALL
  */
-gulp.task('build:all', [ 'clean' ], function (callback) {
-    return runSequence([ 'prepare:resource', 'build:js', 'build:css' ], 'build:html', 'test:local', callback);
+gulp.task('build:all', [ 'clean:www' ], function (callback) {
+    runSequence([ 'prepare:resource', 'build:js', 'build:css' ], 'build:html', 'test:local', callback);
 });
 
 
 /*
  * SERVE
  */
-gulp.task('serve', [ 'build:all' ], function () {
+gulp.task('serve', function (callback) {
     var watchList = [ opt.distDir + '/*', opt.distDir + '/component/**', opt.distDir + '/js/**', opt.testDir + '/**' ];
 
     browserSync.init({
@@ -208,6 +248,115 @@ gulp.task('serve', [ 'build:all' ], function () {
         server: {
             baseDir: opt.distDir
         }
+    }, function (err, syncRet) {
+        opt.remoteIndex = syncRet.options.get('urls').get('external');
+        gulp.watch(opt.srcDir + '/**/*.css', [ 'build:css' ]);
+        gulp.watch(opt.srcDir + '/**/*.js', [ 'build:js' ]);
+        gulp.watch(opt.srcDir + '/**/*.html', [ 'build:html' ]);
+        callback();
+    });
+});
+
+
+
+/**
+ * PREPARE:CORDOVA
+ */
+gulp.task('prepare:cordova', [ 'clean:cordova' ], function (callback) {
+    var cfg = {
+        id: opt.packageName, //packagename
+        name: opt.name, //name
+        lib: {
+            www: {
+                uri: path.resolve(opt.distDir),
+                url: path.resolve(opt.distDir),
+                link: true,
+                version: opt.version,
+                id: opt.packageName
+            }
+        }
+    };
+    var cwd = process.cwd();
+    cordova.create(opt.binDir, opt.packageName, opt.name, cfg)
+        .then(function () {
+            //check task if it is serve. then replace
+            if (argv['_'][0].split(':')[0] === 'serve') {
+                var cordovaCfg = new cordovaConfig(path.join(opt.binDir, 'config.xml'));
+                cordovaCfg.doc.find('content').attrib.src = opt.remoteIndex;
+                //add allow-navigation
+                var ret = new et.Element('allow-navigation');
+                ret.attrib['href'] = '*';
+                cordovaCfg.doc.getroot().append(ret);
+                cordovaCfg.write();
+            }
+        })
+        .then(function () {
+            process.chdir(opt.binDir);
+            return cordova.plugins('add', opt.cordovaPlugins);
+        })
+        .then(function () {
+            return cordova.platform('add', path.join('..', 'node_modules', 'cordova-android'));
+        })
+        //.then(function () {
+        //    return cordova.platform('add', path.join('..', 'node_modules', 'cordova-ios'));
+        //})
+        .then(function () {
+            process.chdir(cwd);
+            callback();
+        });
+});
+
+
+/**
+ * BUILD:CORDOVA
+ */
+gulp.task('build:cordova', [ 'prepare:cordova' ], function (callback) {
+    var cwd = process.cwd();
+    process.chdir(opt.binDir);
+    cordova.build()
+        .then(function () {
+            process.chdir(cwd);
+            callback();
+        });
+});
+
+
+/**
+ * EMULATE:CORDOVA
+ */
+gulp.task('emulate:cordova', function (callback) {
+    var cfg = { platforms: [ opt.cordovaPlatform ] };
+    var cwd = process.cwd();
+    process.chdir(opt.binDir);
+    cordova.emulate(cfg)
+        .then(function () {
+            process.chdir(cwd);
+            callback();
+        });
+});
+
+
+/**
+ * RUN:CORDOVA
+ */
+gulp.task('run:cordova', function (callback) {
+    var cfg = { platforms: [ opt.cordovaPlatform ] };
+    var cwd = process.cwd();
+    process.chdir(opt.binDir);
+    cordova.run(cfg)
+        .then(function () {
+            process.chdir(cwd);
+            callback();
+        });
+});
+
+
+/*
+ * SERVE:CORDOVA
+ */
+gulp.task('serve:cordova', [ 'serve' ], function (callback) {
+    runSequence('build:cordova', 'run:cordova', function () {
+        callback();
     });
 });
 
@@ -215,8 +364,8 @@ gulp.task('serve', [ 'build:all' ], function () {
 /**
  * DEFAULT
  */
-gulp.task('default', [ 'serve' ], function () {
-    gulp.watch(opt.srcDir + '/**/*.css', [ 'build:css' ]);
-    gulp.watch(opt.srcDir + '/**/*.js', [ 'build:js' ]);
-    gulp.watch(opt.srcDir + '/**/*.html', [ 'build:html' ]);
+gulp.task('default', [ 'build:all' ], function (callback) {
+    runSequence('serve', function () {
+        callback();
+    });
 });
