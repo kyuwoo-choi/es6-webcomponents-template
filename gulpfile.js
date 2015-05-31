@@ -327,7 +327,7 @@ gulp.task('build:cordova', [ 'prepare:cordova' ], function (callback) {
 /**
  * EMULATE:CORDOVA
  */
-gulp.task('emulate:cordova', function (callback) {
+gulp.task('emulate:cordova', [ 'prepare:cordova' ], function (callback) {
     var cfg = { platforms: [ opt.cordovaPlatform ] };
     var cwd = process.cwd();
     process.chdir(opt.binDir);
@@ -342,7 +342,7 @@ gulp.task('emulate:cordova', function (callback) {
 /**
  * RUN:CORDOVA
  */
-gulp.task('run:cordova', function (callback) {
+gulp.task('run:cordova', [ 'prepare:cordova' ], function (callback) {
     var cfg = { platforms: [ opt.cordovaPlatform ] };
     var cwd = process.cwd();
     process.chdir(opt.binDir);
@@ -358,7 +358,7 @@ gulp.task('run:cordova', function (callback) {
  * SERVE:CORDOVA
  */
 gulp.task('serve:cordova', [ 'serve' ], function (callback) {
-    runSequence('build:cordova', 'run:cordova', function () {
+    runSequence('run:cordova', function () {
         callback();
     });
 });
