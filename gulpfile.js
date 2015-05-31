@@ -10,6 +10,7 @@ var $ = require('gulp-load-plugins')();
 var runSequence = require('run-sequence');
 var argv = require('yargs').argv;
 var browserSync = require('browser-sync').create();
+var reload = browserSync.reload;
 require('web-component-tester').gulp.init(gulp);
 var cordova = require('cordova-lib').cordova.raw; // promises API
 var cordovaConfig = require('cordova-lib/src/configparser/ConfigParser');
@@ -243,13 +244,15 @@ gulp.task('serve', function (callback) {
     var watchList = [ opt.distDir + '/*', opt.distDir + '/component/**', opt.distDir + '/js/**', opt.testDir + '/**' ];
 
     browserSync.init({
-        files: watchList,
         startPath: opt.indexFile,
         server: {
             baseDir: opt.distDir
         }
     }, function (err, syncRet) {
         opt.remoteIndex = syncRet.options.get('urls').get('external');
+
+        gulp.watch(watchList).on('change', reload);
+
         gulp.watch(opt.srcDir + '/**/*.css', [ 'build:css' ]);
         gulp.watch(opt.srcDir + '/**/*.js', [ 'build:js' ]);
         gulp.watch(opt.srcDir + '/**/*.html', [ 'build:html' ]);
