@@ -24,7 +24,9 @@ opt.componentDir = argv.componentDir || 'component';
 opt.tempDir = argv.tempDir || '.temp';
 opt.distDir = argv.distDir || 'dist';
 opt.testDir = argv.testDir || 'test';
+opt.binDir = argv.binDir || 'bin';
 opt.indexFile = argv.index || 'index.html';
+opt.remoteIndex = argv.remoteIndex;
 opt.compileEnv = argv.env || process.env.NODE_ENV || 'development'; //'development' || 'production'
 opt.transpiler = argv.transpiler || 'traceur'; //'babel' || 'traceur'
 opt.minifyHtml = argv.minifyHtml || argv.minify || (opt.compileEnv === 'production');
@@ -35,14 +37,12 @@ opt.inlineCss = argv.inlineCss || (opt.compileEnv === 'production');
 opt.generateSourceMap = argv.generateSourceMap || (opt.compileEnv === 'development');
 opt.excludeVulcanize = argv.excludeVulcanize || [ path.join('bower_components', 'webcomponentsjs') ];
 //TODO vulcanize inlineScript breaks in some cases. https://github.com/Polymer/vulcanize/issues/113
-opt.binDir = argv.binDir || 'bin';
 opt.cordovaPlugins = argv.cordovaPlugins || appConfig.cordova.plugins ||  [];
 opt.cordovaPlatform = argv.cordovaPlatform || 'android'; //android || ios
 opt.packageName = argv.packageName || appConfig[ 'app-bundle-id' ] || 'com.example';
 opt.helperPackageName = argv.helperPackageName || appConfig[ 'helper-bundle-id' ] || 'com.example.helper';
 opt.name = argv.name || appConfig[ 'name' ] || packageJson.name || 'test';
 opt.version = argv.version || appConfig[ 'app-version' ] || packageJson.version || '0.0.1';
-opt.remoteIndex = argv.remoteIndex;
 
 (function verbose (enabledChalk, disabledChalk) {
     function write (key, value) {
@@ -85,7 +85,7 @@ gulp.task('clean:www', function () {
  * CLEAN:CORDOVA
  */
 gulp.task('clean:cordova', function () {
-    return gulp.src([ opt.binDir ], { read: false })
+    return gulp.src([ path.join(opt.binDir, 'cordova') ], { read: false })
         .pipe($.plumber())
         .pipe($.clean());
 });
@@ -280,11 +280,11 @@ gulp.task('prepare:cordova', [ 'clean:cordova' ], function (callback) {
         }
     };
     var cwd = process.cwd();
-    cordova.create(opt.binDir, opt.packageName, opt.name, cfg)
+    cordova.create(path.join(opt.binDir, 'cordova'), opt.packageName, opt.name, cfg)
         .then(function () {
             //check task if it is serve. then replace
             if (argv['_'][0].split(':')[0] === 'serve') {
-                var cordovaCfg = new cordovaConfig(path.join(opt.binDir, 'config.xml'));
+                var cordovaCfg = new cordovaConfig(path.join(path.join(opt.binDir, 'cordova'), 'config.xml'));
                 cordovaCfg.doc.find('content').attrib.src = opt.remoteIndex;
                 //add allow-navigation
                 var ret = new et.Element('allow-navigation');
@@ -294,14 +294,14 @@ gulp.task('prepare:cordova', [ 'clean:cordova' ], function (callback) {
             }
         })
         .then(function () {
-            process.chdir(opt.binDir);
+            process.chdir(path.join(opt.binDir, 'cordova'));
             return cordova.plugins('add', opt.cordovaPlugins);
         })
         .then(function () {
-            return cordova.platform('add', path.join('..', 'node_modules', 'cordova-android'));
+            return cordova.platform('add', path.join(cwd, 'node_modules', 'cordova-android'));
         })
         //.then(function () {
-        //    return cordova.platform('add', path.join('..', 'node_modules', 'cordova-ios'));
+        //    return cordova.platform('add', path.join(cwd, 'node_modules', 'cordova-android'));
         //})
         .then(function () {
             process.chdir(cwd);
@@ -315,7 +315,7 @@ gulp.task('prepare:cordova', [ 'clean:cordova' ], function (callback) {
  */
 gulp.task('build:cordova', [ 'prepare:cordova' ], function (callback) {
     var cwd = process.cwd();
-    process.chdir(opt.binDir);
+    process.chdir(path.join(opt.binDir, 'cordova'));
     cordova.build()
         .then(function () {
             process.chdir(cwd);
@@ -330,7 +330,7 @@ gulp.task('build:cordova', [ 'prepare:cordova' ], function (callback) {
 gulp.task('emulate:cordova', [ 'prepare:cordova' ], function (callback) {
     var cfg = { platforms: [ opt.cordovaPlatform ] };
     var cwd = process.cwd();
-    process.chdir(opt.binDir);
+    process.chdir(path.join(opt.binDir, 'cordova'));
     cordova.emulate(cfg)
         .then(function () {
             process.chdir(cwd);
@@ -345,7 +345,7 @@ gulp.task('emulate:cordova', [ 'prepare:cordova' ], function (callback) {
 gulp.task('run:cordova', [ 'prepare:cordova' ], function (callback) {
     var cfg = { platforms: [ opt.cordovaPlatform ] };
     var cwd = process.cwd();
-    process.chdir(opt.binDir);
+    process.chdir(path.join(opt.binDir, 'cordova'));
     cordova.run(cfg)
         .then(function () {
             process.chdir(cwd);
