@@ -2,4 +2,5 @@ node_modules
 bower_components
 dist
 .temp
-bin
+bin/cordova
+bin/electron

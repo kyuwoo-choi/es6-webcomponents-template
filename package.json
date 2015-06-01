@@ -2,7 +2,7 @@
   "name": "es6-webcomponents-template",
   "version": "0.0.1",
   "description": "es6 web components template",
-  "main": "index.js",
+  "main": "electron-index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -15,6 +15,7 @@
     "chalk": "^1.0.0",
     "cordova-android": "^4.0.2",
     "cordova-lib": "^5.0.0",
+    "electron-packager": "^4.1.2",
     "eslint": "^0.21.0",
     "gulp": "^3.8.11",
     "gulp-babel": "^5.1.0",
@@ -32,8 +33,12 @@
     "gulp-traceur": "^0.17.1",
     "gulp-uglify": "^1.2.0",
     "gulp-vulcanize": "^6.0.0",
+    "q": "^1.4.1",
     "run-sequence": "^1.1.0",
     "web-component-tester": "^3.1.3",
     "yargs": "^3.9.0"
+  },
+  "dependencies": {
+    "yargs": "^3.10.0"
   }
 }
