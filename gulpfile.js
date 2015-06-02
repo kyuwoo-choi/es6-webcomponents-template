@@ -422,7 +422,7 @@ gulp.task('prepare:cordova', [ 'clean:cordova' ], function (callback) {
             www: {
                 uri: path.resolve(opt.distDir),
                 url: path.resolve(opt.distDir),
-                link: true,
+                link: false,
                 version: opt.version,
                 id: opt.packageName
             }
@@ -453,11 +453,6 @@ gulp.task('prepare:cordova', [ 'clean:cordova' ], function (callback) {
         //    return cordova.platform('add', path.join(cwd, 'node_modules', 'cordova-android'));
         //})
         .then(function () {
-            process.chdir(cwd);
-            callback();
-        })
-        .error(function (err) {
-            console.error(err, 'An Error occurred!');
             process.chdir(cwd);
             callback();
         });
